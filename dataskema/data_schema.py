@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# pylint: disable=missing-docstring, C0301
 from dataskema.validator import Validator
 
 VALID_TYPES = ['str', 'int', 'list', 'bool', 'any']

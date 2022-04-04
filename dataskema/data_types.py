@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# pylint: disable=missing-docstring, C0301
 
 class DataTypes:
 
