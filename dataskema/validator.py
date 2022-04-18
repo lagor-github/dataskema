@@ -1,298 +1,400 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=missing-docstring, C0301
-"""
-Validador
-"""
 import re
 
-
-def _trim(string: str):
-    if string is None:
-        return ''
-    if not isinstance(string, str):
-        string = str(string)
-    return string.strip(' \t\r\n')
+from dataskema import util
+from dataskema import lang
 
 
-class ValidationError(ValueError):
-    """
-    Error de validación
-    """
-    def __init__(self, message: str, errors: dict):
-        self.errors = errors
-        super(ValidationError, self).__init__(message)
+DEFAULT_SEPARATOR = ','
 
-    def get_error_msgs(self) -> list:
-        text_list = []
-        for field, value in self.errors.items():
-            if field is None:
-                continue
-            is_valid = value.get('valid')
-            if is_valid is True:
-                continue
-            message = value.get('message')
-            text_list.append(field + ': ' + message)
-        return text_list
+KEYWORD_IS_VALID = 'valid'
+
+KEYWORD_NAME = 'name'
+KEYWORD_LABEL = 'label'
+KEYWORD_MESSAGE = 'message'
+KEYWORD_SEPARATOR = 'separator'
+KEYWORD_MANDATORY = 'mandatory'
+KEYWORD_DEFAULT = 'default'
+KEYWORD_TYPE = 'type'
+KEYWORD_TYPE_LIST = 'list'
+KEYWORD_TYPE_DICT = 'dict'
+
+KEYWORD_TYPE_STR = 'str'
+KEYWORD_MIN_SIZE = 'min-size'
+KEYWORD_MAX_SIZE = 'max-size'
+KEYWORD_REGEXP = 'regexp'
+KEYWORD_ICASE = 'icase'
+KEYWORD_WHITE_LIST = 'white-list'
+KEYWORD_MAX_LINES = 'max-lines'
+
+KEYWORD_TYPE_INT = 'int'
+KEYWORD_TYPE_FLOAT = 'float'
+KEYWORD_MIN_VALUE = 'min-value'
+KEYWORD_MAX_VALUE = 'max-value'
+
+KEYWORD_TYPE_BOOL = 'bool'
+KEYWORD_BOOL_TRUE = 'true'
+KEYWORD_BOOL_FALSE = 'false'
+
+KEYWORD_TYPE_ANY = 'any'
+KEYWORD_SCHEMA = 'schema'
+
+KEYWORD_TO = 'to'
+KEYWORD_TO_FUNC_LOWER = 'lower'
+KEYWORD_TO_FUNC_UPPER = 'upper'
+KEYWORD_TO_FUNC_NO_TRIM = 'no-trim'
+KEYWORD_TO_FUNC_TRIM = 'trim'
+
+ERROR_INVALID_TYPE = "'{keyword}' has an invalid value '{itype}'"
+ERROR_INVALID_DEFAULT_TYPE = "Invalid default value type '{def_itype}'. Expected type '{itype}"
+ERROR_TYPE_NOT_FOUND = "Type not found: {stype}"
+ERROR_UNEXPECTED_TYPE = "Type '{expected_type}' expected. Found '{utype}'"
+ERROR_INVALID_FUNCTION_TYPE = "Invalid '{keyword}' function '{func_name}' applying to type '{tvalue}"
+ERROR_INVALID_FUNCTION_NAME = "'Invalid '{keyword}' function '{func_name}'"
 
 
-class Validator:
+class SchemaFormatError(ValueError):
+    def __init__(self, message: dict or str, params: dict):
+        super(SchemaFormatError, self).__init__(lang.get_message(message, params))
 
-    def __init__(self, message_prefix: str or None = None):
-        self.checks = {}
-        self.message_prefix = message_prefix
 
-    def clear(self):
-        self.checks.clear()
+class SchemaValidationFailure(Exception):
 
-    def get_errors(self, separator: str) -> str:
-        text = ''
-        for field, value in self.checks.items():
-            if field is None:
-                continue
-            is_valid = value.get('valid')
-            if is_valid is True:
-                continue
-            message = value.get('message')
-            if text != '':
-                text = text + separator
-            text = text + field + ': ' + message
-        return text
+    def __init__(self, message: dict or str, params: dict):
+        self.message = message[lang.DEFAULT] if isinstance(message, dict) else message
+        self.params = params
+        super(SchemaValidationFailure, self).__init__(self.get_message())
 
-    def get_error(self, pname: str) -> dict:
-        return self.checks.get(pname)
+    def get_message(self, anonymize: bool or None = False) -> str:
+        return lang.get_message(self.message, self.params, anonymize)
 
-    @staticmethod
-    def add_row_error_list(error_list: list, row: int, error: str):
-        error_list.append('[Row: ' + str(row) + '] ' + error)
+    def get_label(self) -> str:
+        return self.params.get(KEYWORD_NAME)
 
-    @staticmethod
-    def add_line_error_list(error_list: list, line: int, error: str):
-        error_list.append('[Line: ' + str(line) + '] ' + error)
 
-    def dump_row_error_list(self, error_list: list, row: int):
-        self.dump_error_list(error_list, '[Row: ' + str(row) + '] ')
+class SchemaValidator:
 
-    def dump_line_error_list(self, error_list: list, line: int):
-        self.dump_error_list(error_list, '[Line: ' + str(line) + '] ')
-
-    def dump_error_list(self, error_list: list, extra: str = ''):
-        if len(self.checks) > 0:
-            for field, value in self.checks.items():
-                if field is None:
-                    continue
-                is_valid = value.get('valid')
-                if is_valid is True:
-                    continue
-                message = value.get('message')
-                if message is None:
-                    continue
-                error_list.append(extra + field + ': ' + message)
-            self.checks.clear()
-
-    def has_errors(self) -> bool:
-        total = 0
-        for value in self.checks.values():
-            is_valid = value.get('valid')
-            if not is_valid or is_valid is False:
-                total = total + 1
-        return total
-
-    def add_field(self, pname: str):
-        self.checks[pname] = {'valid': True}
-
-    def add_message(self, pname: str, error: str):
-        if self.message_prefix is not None:
-            error = self.message_prefix + ': ' + error
-        self.checks[pname] = {'message': error, 'valid': False}
-
-    def raise_validation_error(self):
-        if len(self.checks) > 0:
-            for field, check in self.checks.items():
-                is_valid = check.get('valid')
-                if is_valid:
-                    continue
-                message = check.get('message')
-                raise ValidationError(message, self.checks)
-
-    def check_mandatory(self, pname: str, pvalue: str) -> bool:
+    def __init__(self, data_schema: dict):
         """
-        Comprueba que el parámetro 'pname' está definido y no es una cadena vacía. Lanza una excepción si no valida
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
         """
-        if pvalue is None or (isinstance(pvalue, str) and len(_trim(pvalue)) == 0):
-            self.add_message(pname, "Field required")
-            return False
-        self.add_field(pname)
-        return True
+        self.data_schema = data_schema
 
-    def check_regexp(self, pname: str, pvalue: str, pattern_to_match: str, message: str or None) -> bool:
-        """
-        Comprueba que el parámetro 'pname' valida una expresión regular. Lanza una excepción si no valida
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        :param pattern_to_match: la expresión regular a validar en el parámetro
-        :param message: Mensaje a incluir en caso de error
-        """
-        if pvalue is not None and len(_trim(pvalue)) > 0:
-            regex = re.compile(pattern_to_match, re.I)
-            match = regex.match(str(pvalue))
-            if not bool(match):
-                if not message:
-                    message = "Invalid format"
-                self.add_message(pname, message)
-                return False
-            self.add_field(pname)
-        return True
+    def validate(self, name: str, value: any) -> any:
+        # -- obtiene la etiquea del parámetro
+        keyword = KEYWORD_LABEL
+        label = self._get_str(keyword)
+        label = label if label is not None else name
 
-    def check_minsize(self, pname: str, pvalue: str, minvalue: int or None) -> bool:
-        """
-        Comprueba que el parámetro 'pname' valida un tamaño máximo en su valor
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        :param minvalue: tamaño mínimo
-        """
-        slen = len(_trim(pvalue))
-        if pvalue is not None and minvalue is not None and slen < minvalue:
-            self.add_message(pname, f"Value too short (min. {str(minvalue)})")
-            return False
-        self.add_field(pname)
-        return True
+        # -- obtiene el valor según su tipo
+        keyword = KEYWORD_TYPE
+        itype = self._get_str(keyword)
+        if itype is None:
+            itype = util.typeof(value)
+        if itype is not None:
+            try:
+                if itype == KEYWORD_TYPE_STR:
+                    value = _get_type_str(label, value)
+                elif itype == KEYWORD_TYPE_INT:
+                    value = _get_type_int(label, value)
+                elif itype == KEYWORD_TYPE_FLOAT:
+                    value = _get_type_float(label, value)
+                elif itype == KEYWORD_TYPE_BOOL:
+                    value = _get_type_bool(label, value)
+                elif itype == KEYWORD_TYPE_LIST:
+                    keyword2 = KEYWORD_SEPARATOR
+                    separator = self._get_str(keyword2)
+                    separator = separator if separator is not None else DEFAULT_SEPARATOR
+                    value = _get_type_list(label, value, separator)
+                elif itype == KEYWORD_TYPE_DICT:
+                    value = _get_type_dict(label, value)
+                elif itype != KEYWORD_TYPE_ANY:
+                    raise SchemaFormatError(ERROR_INVALID_TYPE, {'keyword': keyword, 'itype': itype})
+            # -- comprueba si existe un mensaje customizado para un error de tipo
+            except SchemaValidationFailure as fail:
+                self._check_error_custom_message(label, fail)
 
-    def check_maxsize(self, pname: str, pvalue: str, maxvalue: int or None) -> bool:
-        """
-        Comprueba que el parámetro 'pname' valida un tamaño máximo en su valor
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        :param maxvalue: tamaño máximo
-        """
-        slen = len(_trim(pvalue))
-        if pvalue is not None and maxvalue is not None and slen > maxvalue:
-            self.add_message(pname, f"Value too large (max. {str(maxvalue)})")
-            return False
-        self.add_field(pname)
-        return True
+        # -- aplica el valor por defecto en su caso
+        keyword = KEYWORD_DEFAULT
+        defvalue = self._get_obj(keyword)
+        if itype is None and defvalue is not None:
+            def_itype = util.typeof(defvalue)
+            if itype != def_itype:
+                raise SchemaFormatError(ERROR_INVALID_DEFAULT_TYPE, {'def_itype': def_itype, 'itype': itype})
+        if value is None and defvalue is not None:
+            value = defvalue
 
-    def _add_field_and_trim_value(self, pname: str, pvalue: str or None) -> str:
-        if pvalue is not None and isinstance(pvalue, str):
-            pvalue = _trim(pvalue)
-            if len(pvalue) > 0:
-                self.add_field(pname)
-        return pvalue
+        # -- aplica las funciones de transformación
+        if value is not None:
+            keyword = KEYWORD_TO
+            tos = self._get_str(keyword)
+            if tos is not None:
+                tos = tos.split(',')
+                for to in tos:
+                    to = util.trim(to)
+                    if not util.is_empty(to):
+                        value = _process_to(keyword, value, to)
+            elif isinstance(value, str):
+                value = util.trim(value)
 
-    def check_obj(self, pname: str, pvalue: any, mandatory: bool = False) -> any or None:
-        if mandatory and not self.check_mandatory(pname, pvalue):
-            return None
-        return pvalue
+        # -- comprueba si es mandatorio (fuera de comprobación de mensaje específico)
+        keyword = KEYWORD_MANDATORY
+        mandatory = self._get_bool(keyword)
+        if mandatory:
+            _check_mandatory(label, value)
 
-    def check_str(self, pname: str, pvalue: str, minsize: int or None, maxsize: int or None,
-                  mandatory: bool) -> str or None:
-        if mandatory and not self.check_mandatory(pname, pvalue):
-            return None
-        if pvalue is not None and isinstance(pvalue, list):
-            return pvalue
-        if pvalue is None or not isinstance(pvalue, str):
-            return None
-        if not self.check_minsize(pname, pvalue, minsize):
-            return None
-        if not self.check_maxsize(pname, pvalue, maxsize):
-            return None
-        return self._add_field_and_trim_value(pname, pvalue)
+        # -- comprueba el tipo 'str'
+        if isinstance(value, str):
+            keyword = KEYWORD_MIN_SIZE
+            min_size = self._get_int(keyword)
+            _check_minsize(label, value, min_size)
+            keyword = KEYWORD_MAX_SIZE
+            max_size = self._get_int(keyword)
+            _check_maxsize(label, value, max_size)
+            # -- comprueba la cadena en el caso que sea distinta a ''
+            if value != '':
+                try:
+                    keyword = KEYWORD_REGEXP
+                    regexp = self._get_str(keyword)
+                    _check_regexp(label, value, regexp)
+                # -- comprueba si existe un mensaje customizado para un error de formato
+                except SchemaValidationFailure as fail:
+                    self._check_error_custom_message(label, fail)
 
-    def check_int(self, pname: str, pvalue: str, mandatory: bool) -> int or None:
-        """
-        Comprueba que el parámetro 'pname' valida un número entero
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        :param mandatory: si es mandatorio
-        """
-        self.add_field(pname)
-        if mandatory and not self.check_mandatory(pname, pvalue):
-            return None
-        if isinstance(pvalue, int):
-            return pvalue
-        if isinstance(pvalue, float):
-            return int(pvalue)
-        if not isinstance(pvalue, str):
-            return None
-        pvalue = _trim(pvalue)
-        if pvalue is None or pvalue == '':
-            return None
-        if not self.check_maxsize(pname, pvalue, 50):
-            return None
-        if not self.check_regexp(pname, pvalue, '^\\d+$', "Invalid integer number"):
-            return None
-        return int(self._add_field_and_trim_value(pname, pvalue))
+                keyword = KEYWORD_WHITE_LIST
+                whitelist = self._get_list(keyword)
+                keyword = KEYWORD_ICASE
+                icase = self._get_bool(keyword)
+                icase = icase if icase is not None else True
+                _check_whitelist(label, value, whitelist, icase)
+                keyword = KEYWORD_MAX_LINES
+                max_lines = self._get_int(keyword)
+                _check_max_lines(label, value, max_lines)
 
-    def check_int_with_range(self, pname: str, pvalue: str, vmin: int or None, vmax: int or None,
-                             mandatory: bool) -> int or None:
-        """
-        Comprueba que el parámetro 'pname' valida un número entero
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        :param vmin: valor mínimo del parámetro o None si no hay límite
-        :param vmax: valor máximo del parámetro o None si no hay límite
-        :param mandatory: si es mandatorio
-        """
-        value = self.check_int(pname, pvalue, mandatory)
-        if value is None:
-            return None
-        if (vmin is not None and value < vmin) or (vmax is not None and value > vmax):
-            self.add_message(pname, f'Numeric value out of range ({vmin} - {vmax})')
-            return None
+        # -- comprueba el tipo 'int' o 'float'
+        if isinstance(value, int) or isinstance(value, float):
+            keyword = KEYWORD_MIN_VALUE
+            min_value = self._get_int(keyword)
+            _check_minvalue(label, value, min_value)
+            keyword = KEYWORD_MAX_VALUE
+            max_value = self._get_int(keyword)
+            _check_maxvalue(label, value, max_value)
+
+        # -- comprueba el tipo 'list'
+        if isinstance(value, list):
+            keyword = KEYWORD_SCHEMA
+            item_schema = self._get_dict(keyword)
+            _check_item_list_schema(label, value, item_schema)
+
         return value
 
-    def check_bool(self, pname: str, pvalue: str) -> bool:
-        """
-        Comprueba que el parámetro 'pname' sea un booleano de cadena 'true' o 'false'
+    def _get_obj(self, keyword: str):
+        return self.data_schema.get(keyword)
 
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        """
-        if pvalue is None:
-            return False
-        if isinstance(pvalue, bool):
-            return pvalue
-        if self.check_whitelist(pname, pvalue, ['true', 'false'], False) and pvalue == 'true':
-            self.add_field(pname)
-            return True
-        return False
+    def _get_bool(self, keyword: str) -> bool:
+        value = self._get_obj(keyword)
+        if value is not None and not isinstance(value, bool):
+            _schema_error_unexpected_type(keyword, value, KEYWORD_TYPE_BOOL)
+        return value
 
-    def check_whitelist(self, pname: str, pvalue: str, whitelist: [], mandatory: bool) -> str or None:
-        """
-        Comprueba que el parámetro 'pname' se encuentre en una whitelist
+    def _get_dict(self, keyword: str) -> dict:
+        value = self._get_obj(keyword)
+        if value is not None and not isinstance(value, dict):
+            _schema_error_unexpected_type(keyword, value, KEYWORD_TYPE_DICT)
+        return value
 
-        :param self:
-        :param pname: nombre del parámetro
-        :param pvalue: valor del parámetro
-        :param whitelist: lista de valores admitidos
-        :param mandatory: si es mandatorio
+    def _get_str(self, keyword: str) -> str:
+        value = self._get_obj(keyword)
+        if value is not None and not isinstance(value, str):
+            _schema_error_unexpected_type(keyword, value, KEYWORD_TYPE_STR)
+        return value
 
-        :return: si verifica o no
-        """
-        if mandatory and not self.check_mandatory(pname, pvalue):
-            return None
-        if isinstance(pvalue, str):
-            if pvalue is None or _trim(pvalue) == '':
-                return None
-            for item in whitelist:
-                if item == pvalue:
-                    return item
-            self.invalid_value(pname)
+    def _get_int(self, keyword: str):
+        value = self._get_obj(keyword)
+        if value is not None and not isinstance(value, int):
+            _schema_error_unexpected_type(keyword, value, KEYWORD_TYPE_INT)
+        return value
+
+    def _get_list(self, keyword: str):
+        value = self._get_obj(keyword)
+        if value is not None and not isinstance(value, list):
+            _schema_error_unexpected_type(keyword, value, KEYWORD_TYPE_LIST)
+        return value
+
+    def _check_error_custom_message(self, label: str, fail: SchemaValidationFailure):
+        keyword = KEYWORD_MESSAGE
+        message = self._get_obj(keyword)
+        if message is None:
+            raise fail
+        if isinstance(message, dict):
+            lang_message = message.get(lang.DEFAULT)
+            message = lang_message if lang_message is not None else fail.message
+        raise SchemaValidationFailure(message, {KEYWORD_NAME: label})
+
+
+def _schema_error_unexpected_type(keyword: str, found_value: any, expected_type: str):
+    utype = util.typeof(found_value)
+    raise SchemaFormatError(ERROR_UNEXPECTED_TYPE, {'keyword': keyword, 'utype': utype, 'expected_type': expected_type})
+
+
+def _val_error_unexpected_type(name: str, found_value: any, expected_type: str):
+    utype = util.typeof(found_value)
+    raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_HAS_INVALID_TYPE, {KEYWORD_NAME: name, 'utype': utype, 'expected_type': expected_type})
+
+
+def _get_type_str(name: str, value: any) -> str or None:
+    if value is None:
         return None
+    if isinstance(value, int) or isinstance(value, float) or isinstance(value, bool):
+        value = str(value)
+    if not isinstance(value, str):
+        _val_error_unexpected_type(name, value, KEYWORD_TYPE_STR)
+    return value
 
-    def invalid_value(self, pname: str):
-        """
-        Lanza una excepción genérica de falta de validación
-        :param self:
-        :param pname: nombre del parámetro
-        """
-        self.add_field(pname)
-        self.add_message(pname, "Invalid param value")
+
+def _get_type_int(name: str, value: any) -> int or None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = int(util.trim(value))
+        except ValueError:
+            _val_error_unexpected_type(name, value, KEYWORD_TYPE_INT)
+    if isinstance(value, float):
+        return int(value)
+    if not isinstance(value, int):
+        _val_error_unexpected_type(name, value, KEYWORD_TYPE_INT)
+    return value
+
+
+def _get_type_float(name: str, value: any) -> int or None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = float(util.trim(value))
+        except ValueError:
+            _val_error_unexpected_type(name, value, KEYWORD_TYPE_FLOAT)
+    if isinstance(value, int):
+        return float(value)
+    if not isinstance(value, float):
+        _val_error_unexpected_type(name, value, KEYWORD_TYPE_FLOAT)
+    return value
+
+
+def _get_type_bool(name: str, value: any) -> bool or None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        sbool = util.trim(value).lower()
+        if sbool != KEYWORD_BOOL_TRUE and sbool != KEYWORD_BOOL_FALSE:
+            _val_error_unexpected_type(name, value, KEYWORD_TYPE_BOOL)
+        value = sbool == KEYWORD_BOOL_TRUE
+    elif isinstance(value, int):
+        if value != 0 and value != 1:
+            _val_error_unexpected_type(name, value, KEYWORD_TYPE_BOOL)
+        value = value == 1
+    elif not isinstance(value, bool):
+        _val_error_unexpected_type(name, value, KEYWORD_TYPE_BOOL)
+    return value
+
+
+def _get_type_list(name: str, value: any, separator: str) -> list or None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value.split(separator)
+    elif isinstance(value, dict):
+        _val_error_unexpected_type(name, value, KEYWORD_TYPE_LIST)
+    return [value]
+
+
+def _get_type_dict(name: str, value: any) -> list or None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        _val_error_unexpected_type(name, value, KEYWORD_TYPE_DICT)
+    return [value]
+
+
+def _process_to(keyword: str, value: any, func_name: str) -> str:
+    if isinstance(value, int) or isinstance(value, float):
+        value = str(value)
+    if not isinstance(value, str):
+        raise SchemaFormatError(ERROR_INVALID_FUNCTION_TYPE, {'keyword': keyword, 'func_name': func_name, 'tvalue': str(type(value))})
+    if func_name == KEYWORD_TO_FUNC_LOWER:
+        return value.lower()
+    if func_name == KEYWORD_TO_FUNC_UPPER:
+        return value.upper()
+    if func_name == KEYWORD_TO_FUNC_NO_TRIM:
+        return value
+    if func_name == KEYWORD_TO_FUNC_TRIM:
+        return util.trim(value)
+    raise SchemaFormatError(ERROR_INVALID_FUNCTION_NAME, {'keyword': keyword, 'func_name': func_name})
+
+
+def _check_mandatory(name: str, value: any):
+    if value is None or (isinstance(value, str) and len(util.trim(value)) == 0):
+        raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_IS_MANDATORY, {KEYWORD_NAME: name})
+
+
+def _check_regexp(name: str, value: str, pattern_to_match: str):
+    if value is not None and len(value) > 0 and pattern_to_match is not None:
+        regex = re.compile(pattern_to_match, re.I)
+        match = regex.match(str(value))
+        if not bool(match):
+            raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_HAS_INVALID_FORMAT, {KEYWORD_NAME: name})
+
+
+def _check_minsize(name: str, value: str, minsize: int or None):
+    slen = len(util.trim(value))
+    if value is not None and minsize is not None and slen < minsize:
+        raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_IS_TOO_SHORT, {KEYWORD_NAME: name, 'minsize': minsize})
+
+
+def _check_maxsize(name: str, value: str, maxsize: int or None):
+    slen = len(util.trim(value))
+    if value is not None and maxsize is not None and slen > maxsize:
+        raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_IS_TOO_LONG, {KEYWORD_NAME: name, 'maxsize': maxsize})
+
+
+def _check_minvalue(name: str, value: any, minvalue: any):
+    if value is not None and minvalue is not None and value < minvalue:
+        raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_IS_TOO_SMALL, {KEYWORD_NAME: name, 'minvalue': minvalue})
+
+
+def _check_maxvalue(name: str, value: any, maxvalue: any):
+    if value is not None and maxvalue is not None and value > maxvalue:
+        raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_IS_TOO_BIG, {KEYWORD_NAME: name, 'maxvalue': maxvalue})
+
+
+def _check_item_list_schema(name: str, plist: list, item_schema: dict):
+    if item_schema is not None:
+        schema_validator = SchemaValidator(item_schema)
+        for pitem in plist:
+            message = schema_validator.validate('item list', pitem)
+            if message is not None:
+                raise SchemaValidationFailure(lang.VAL_ERROR_LIST_ITEM_HAS_INVALID_ELEMENT, {KEYWORD_NAME: name, 'message': message})
+
+
+def _check_whitelist(name: str, value: any, whitelist: list, icase: bool = True):
+    if whitelist is None:
+        return
+    if icase:
+        value = str(value).lower()
+        for pitem in whitelist:
+            if str(pitem).lower() == value:
+                return
+    else:
+        for pitem in whitelist:
+            if pitem == value:
+                return
+    raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_HAS_INVALID_VALUE, {KEYWORD_NAME: name})
+
+
+def _check_max_lines(name: str, value: any, max_lines: int):
+    if max_lines is not None and max_lines > 0:
+        total_nl = util.trim(value).count('\n') + 1
+        if total_nl > max_lines:
+            raise SchemaValidationFailure(lang.VAL_ERROR_PARAM_HAS_TOO_MUCH_LINES, {KEYWORD_NAME: name, 'maxlines': max_lines})
+
