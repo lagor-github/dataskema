@@ -48,9 +48,7 @@ KEYWORD_TO_FUNC_TRIM = 'trim'
 
 ERROR_INVALID_TYPE = "'{keyword}' has an invalid value '{itype}'"
 ERROR_INVALID_DEFAULT_TYPE = "Invalid default value type '{def_itype}'. Expected type '{itype}"
-ERROR_TYPE_NOT_FOUND = "Type not found: {stype}"
 ERROR_UNEXPECTED_TYPE = "Type '{expected_type}' expected. Found '{utype}'"
-ERROR_INVALID_FUNCTION_TYPE = "Invalid '{keyword}' function '{func_name}' applying to type '{tvalue}"
 ERROR_INVALID_FUNCTION_NAME = "'Invalid '{keyword}' function '{func_name}'"
 
 
@@ -124,19 +122,6 @@ class SchemaValidator:
         if value is None and defvalue is not None:
             value = defvalue
 
-        # -- aplica las funciones de transformación
-        if value is not None:
-            keyword = KEYWORD_TO
-            tos = self._get_str(keyword)
-            if tos is not None:
-                tos = tos.split(',')
-                for to in tos:
-                    to = util.trim(to)
-                    if not util.is_empty(to):
-                        value = _process_to(keyword, value, to)
-            elif isinstance(value, str):
-                value = util.trim(value)
-
         # -- comprueba si es mandatorio (fuera de comprobación de mensaje específico)
         keyword = KEYWORD_MANDATORY
         mandatory = self._get_bool(keyword)
@@ -145,6 +130,19 @@ class SchemaValidator:
 
         # -- comprueba el tipo 'str'
         if isinstance(value, str):
+
+            # -- aplica las funciones de transformación
+            keyword = KEYWORD_TO
+            tos = self._get_str(keyword)
+            if tos is not None:
+                tos = tos.split(',')
+                for to in tos:
+                    to = util.trim(to)
+                    if not util.is_empty(to):
+                        value = _process_to(keyword, value, to)
+            else:
+                value = util.trim(value)
+
             keyword = KEYWORD_MIN_SIZE
             min_size = self._get_int(keyword)
             _check_minsize(label, value, min_size)
@@ -318,10 +316,6 @@ def _get_type_dict(name: str, value: any) -> list or None:
 
 
 def _process_to(keyword: str, value: any, func_name: str) -> str:
-    if isinstance(value, int) or isinstance(value, float):
-        value = str(value)
-    if not isinstance(value, str):
-        raise SchemaFormatError(ERROR_INVALID_FUNCTION_TYPE, {'keyword': keyword, 'func_name': func_name, 'tvalue': str(type(value))})
     if func_name == KEYWORD_TO_FUNC_LOWER:
         return value.lower()
     if func_name == KEYWORD_TO_FUNC_UPPER:

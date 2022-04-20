@@ -68,6 +68,20 @@ class DataTypes:
             lang.ES: "{name} debe ser un número hexadecimal válido",
         }
     }
+    base64 = {
+        'regexp': '^[A-Za-z0-9+/]+\\={0,2}$',
+        'message': {
+            lang.EN: "{name} must be a valid base64 string",
+            lang.ES: "{name} debe ser una cadena en base64 válida",
+        }
+    }
+    numeric = {
+        'regexp': '^[0-9]+$',
+        'message': {
+            lang.EN: "{name} must be a numeric string",
+            lang.ES: "{name} debe ser una cadena numérica",
+        }
+    }
     alfanumeric = {
         'regexp': '^[A-Za-z0-9]+$',
         'message': {

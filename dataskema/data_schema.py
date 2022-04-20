@@ -3,7 +3,7 @@
 from dataskema.validator import SchemaValidator
 from dataskema.validator import SchemaValidationFailure
 from dataskema.validator import SchemaFormatError
-from dataskema.validator import KEYWORD_MESSAGE, KEYWORD_NAME, KEYWORD_LABEL, KEYWORD_IS_VALID
+from dataskema.validator import KEYWORD_MESSAGE, KEYWORD_LABEL, KEYWORD_IS_VALID
 from dataskema import lang
 from dataskema import util
 

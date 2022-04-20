@@ -8,6 +8,8 @@ __LOWER_ACUTES = "áéíóúñç"
 __UPPER_NO_ACUTES = "AEIOUNC"
 __LOWER_NO_ACUTES = "aeiounc"
 
+ERROR_TYPE_NOT_FOUND = "Type not found: {stype}"
+
 
 def no_acute(string: str) -> str:
     output = ""

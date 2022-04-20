@@ -7,6 +7,14 @@ Data schema validation for python
 - Multi-language support
 - Easy to use, minimum code using decorators
 
+## Content  index
+
+1. [How to use dataskema](##How to use `dataskema`)
+2. [Data types definition](##Data types definition)
+3. [Default data types](##Default data types)
+4. [Inline keyword override](##Inline keyword override)
+
+
 ## How to use `dataskema`
 
 1) Define your own data schema using `dataskema` default data types (`mydatatypes.py`) or using your own data types:
@@ -248,18 +256,258 @@ The code of `@my_json_result` could be something as this:
             
         
 ## Data types definition
+You will define a struct data with some of that keywords. 
 
-- `'type'`: type of data: `'int'`, `'float'`, `'str'`, `'bool'`, `'list'`, `'dict'`, `'any'`. It would be a type that could be casting to python type without raise an exception. 
+### All types
+That keywords are for all types:
 
-- `mandatory`: the data must be mandatory
+#### `'type': <keyword>`
+Type of data. Possible types are: `'int'`, `'float'`, `'str'`, `'bool'`, `'list'`, `'dict'`, `'any'`.
 
-For `'type'`: `'str'`
+If the data value cannot cast with the defined type then a format error message will be raised. This default message could be overriden using the `message` keyword. By default, the type will be `str`. If `default` keyword is defined, the default value type will be the type of this default value especified.
 
-- `'white-list'`: [...]
+#### `'default': <any>`
+Default value for the data when it is not passed.
+
+#### `'mandatory': <bool>`
+The data must be mandatory. If `type=str` the data will be empty if only had blank characters.
+
+#### `'message': <str> or <dict>`
+Override the default message for format errors. You can to use `{name}` to specify the data name. If you want to specify some languages, you can use a dict with the keys EN or ES for english or spanish languages respectively.    
+
+#### `'label': <str>`
+By default, the data name is the incoming paramenter name. You can overwrite using this keyword for better understanding.
+
+
+### For `'type': 'str'`
+Keywords only for type specified as `'str'` are:
+
+#### `'white-list': [...]`
 list of valid values for the data
 
-- `'icase'`: <bool>
+#### `'icase': <bool>`
 ignore case for matching the `white-list` 
+
+#### `'regexp': <str>`
+Regular expression to match de data value. The default format error message could be overriden using the `message` keyword.
+
+#### `'min-size': <int>`
+Limit the minimum number of characters for the data.  
+
+#### `'max-size': <int>`
+Limit the maximum number of characters for the data.  
+
+#### `'max-lines': <int>`
+Limit the maximum number of lines for the data.  
+
+#### `'to': <keywords>`
+Tranformation string functions. Several functions can be applied separating them by commas.
+Possible values are:
+- `'upper'`: Convert string to uppercase.
+- `'lower'`: Convert string to lowercase.
+- `'no-trim'`: No trim the string. By default, all strings are trimmed by both sides. 
+- `'trim'`: Force trim (by default)
+
+
+### For `'type': 'int' or 'float'`
+Keywords only for type specified as `'int' or 'float'` are:
+
+#### `'min-value': <int>`
+Limit the minimum value for the data.  
+
+#### `'max-value': <int>`
+Limit the maximum value for the data.  
+
+
+### For `'type': 'list'`
+Keywords only for type specified as `'list'` are:
+
+#### `'schema': <dict>`
+Schema of data for list items. This data schema must be validated for each item list. The schema format
+is the same of this schema and use the same keyword and constraints.
+
+
+### For `'type': 'bool', 'dict' or 'any'`
+That types have no specific keywords:
+
+
+## Default data types 
+That are the default data types defined by `dataskema` by the class `DataTypes` in `data_types.py` file. It's very illustrative as an example:
+
+
+    class DataTypes:
+    
+        generic = {
+            'type': 'any',
+        }
+        boolean = {
+            'type': 'bool',
+            'message': {
+                lang.EN: "{name} must be a boolean",
+                lang.ES: "{name} debe ser un booleano",
+            }
+        }
+        integer = {
+            'type': 'int',
+            'message': {
+                lang.EN: "{name} must be an integer number",
+                lang.ES: "{name} debe ser un número entero",
+            }
+        }
+        positive = {
+            'type': 'int',
+            'min-value': 1,
+            'message': {
+                lang.EN: "{name} must be an integer positive number",
+                lang.ES: "{name} debe ser un número entero positivo",
+            }
+        }
+        negative = {
+            'type': 'int',
+            'max-value': -1,
+            'message': {
+                lang.EN: "{name} must be an integer negative number",
+                lang.ES: "{name} debe ser un número entero nagativo",
+            }
+        }
+        zero_positive = {
+            'type': 'int',
+            'min-value': 0,
+            'message': {
+                lang.EN: "{name} must be an integer number or zero",
+                lang.ES: "{name} debe ser un número entero positivo o cero",
+            }
+        }
+        zero_negative = {
+            'type': 'int',
+            'max-value': 0,
+            'message': {
+                lang.EN: "{name} must be an integer negative number or zero",
+                lang.ES: "{name} debe ser un número entero negativo o cero",
+            }
+        }
+        decimal = {
+            'type': 'float',
+            'message': {
+                lang.EN: "{name} must be a valid decimal number",
+                lang.ES: "{name} debe ser un número decimal válido",
+            }
+        }
+        hexadecimal = {
+            'regexp': '^[A-Fa-f0-9]+$',
+            'message': {
+                lang.EN: "{name} must be a valid hexadecimal number",
+                lang.ES: "{name} debe ser un número hexadecimal válido",
+            }
+        }
+        alfanumeric = {
+            'regexp': '^[A-Za-z0-9]+$',
+            'message': {
+                lang.EN: "{name} must be a alphanumeric string",
+                lang.ES: "{name} debe ser una cadena alfanumérica",
+            }
+        }
+        short_id = {
+            'max-size': 20,
+        }
+        long_id = {
+            'max-size': 40,
+        }
+        short_name = {
+            'max-size': 50,
+        }
+        name = {
+            'max-size': 100,
+        }
+        title = {
+            'max-size': 200,
+        }
+        summary = {
+            'max-size': 2000,
+        }
+        text = {
+            'max-size': 500000,
+            'max-lines': 10000,
+        }
+        version = {
+            'regexp': '^[a-zA-Z0-9\\.\\-\\+]+$',
+            'message': {
+                lang.EN: "{name} must have a valid version format",
+                lang.ES: "{name} debe tener un formato de versión válido",
+            }
+        }
+        search = {
+            'max-size': 50,
+        }
+        email = {
+            'regexp': '^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$',
+            'max-size': 100,
+            'message': {
+                lang.EN: "{name} must have a valid e-mail format",
+                lang.ES: "{name} debe tener un formato de e-mail válido",
+            }
+        }
+        url = {
+            'regexp': '^((((https?|ftps?|gopher|telnet|nntp)://)|(mailto:|news:))(%[0-9A-Fa-f]{2}|[-()_.!~*\';/?:@&'
+                      '=+$,A-Za-z0-9])+)([).!\';/?:,][[:blank:|:blank:]])?$',
+            'max-size': 500,
+            'message': {
+                lang.EN: "{name} must have a valid URL format",
+                lang.ES: "{name} debe tener un formato de URL válida",
+            }
+        }
+        password = {
+            'regexp': '^[a-zA-Z0-9_+&*\\$\\-\\(\\)]+$',
+            'max-size': 50,
+            'min-size': 8,
+            'message': {
+                lang.EN: "{name} must have a valid password (only alphanumeric chars and _, +, &, *, -, (, ) or $ symbols)",
+                lang.ES: "{name} debe tener un formato de password válida (sólo caracters alfanuméricos y los símbolos _, +, &, *, -, (, ) o $",
+            }
+        }
+            
+
+## Inline keyword override  
+The class `DataTypes` define some static methods to ease include keyword in a type without modify the type in particular cases. That methods are:
+- `label(type, label)`: include a label for the type
+- `default(type, default_value)`: include a default value for the type
+- `upper(type)`: force incoming value to be uppercase
+- `lower(type)`: force incoming value to be lowercase
+- `mandatory(type)`: the value must be mandatory
+- `type(type, newtype)`: One way to redefine inline a complex type. Useful for define our own data types using `DataTypes` class
+
+Examples:
+
+Importing `dataskema.data_types.DataTypes as t`:
+
+`t.name` is not a mandatory type but `t.mandatory(t.name)`, yes
+
+`t.name` name by default will be 'name' but `t.label(t.name,'Contact')` will be named 'Contact' 
+
+
+For define own our types in a custom class:
+
+    from dataskema.data_types import DataTypes as t
+
+    class MyDataTypes(t):
+    
+        contact = t.mandatory(t.label(t.name, 'Contact'))
+        contact_email = t.label(t.email, 'Contact e-mail')
+        address = t.label(t.title, 'Address')
+        postal_code = t.type(t.numeric, {
+            label: 'Postal code'
+            mandatory: true,
+            min-size: 5,
+            max-size: 5,
+        })
+        ...
+
+
+
+
+
+
+
 
 
 
