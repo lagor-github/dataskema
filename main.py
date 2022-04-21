@@ -1,15 +1,22 @@
 import sys
-import ../dataskema
-from ../dataskema.data_types import DataTypes as t
+import dataskema
+import dataskema.lang
+from dataskema.data_types import DataTypes as t
 
 
-@dataskema.args(param1=t.positive, param2=t.negative, param3=t.email)
-def test_incoming_params(param1, param2, param3):
-    print(f"Param1={strparam1}")
-    print(f"Param2={str(param2)}")
-    print(f"Param3={str(param3)}")
+@dataskema.args(pat_value={
+        'label': 'Valor del PAT',
+        'min-size': 8,
+        'max-size': 64,
+        'regexp': '^[A-Za-z0-9+/]+\\={0,2}$',
+
+    }
+)
+def test_incoming_params(pat_value):
+    print(f"pat_value={str(pat_value)}")
 
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    test_incoming_params(**args)
+    dataskema.lang.DEFAULT = dataskema.lang.ES
+    test_incoming_params(pat_value="MTM5MjQwMzkwNTg2OkHPKja/jsXVAFSSeFEEwHk5oLvA")

@@ -86,7 +86,7 @@ class DataSchema:
                 self.data[pname] = pvalue
                 _add_is_valid(result, pname)
             except SchemaValidationFailure as ex:
-                _add_is_not_valid(result, pname, ex.get_label(), ex.get_message(True))
+                _add_is_not_valid(result, pname, ex.get_name(), ex.get_message(True))
                 if MAX_VALIDATION_MESSAGES <= 0 or len(first_messages) < MAX_VALIDATION_MESSAGES:
                     first_messages.append(ex.get_message(False))
                 valid = False

@@ -67,7 +67,7 @@ class SchemaValidationFailure(Exception):
     def get_message(self, anonymize: bool or None = False) -> str:
         return lang.get_message(self.message, self.params, anonymize)
 
-    def get_label(self) -> str:
+    def get_name(self) -> str:
         return self.params.get(KEYWORD_NAME)
 
 

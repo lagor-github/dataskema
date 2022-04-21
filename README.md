@@ -87,7 +87,7 @@ The error will be:
 
     'Phone number' has an invalid format
 
-4) We can specify our own format error message too:  
+5) We can specify our own format error message too:  
 
 
     phone_number = {
@@ -104,7 +104,7 @@ The error will be:
     'Phone number' has an invalid phone number format
     
 
-5Other test: Empty `name` value and change `name` type as mandatory using inline type change. Look `t.mandatory` method in the decorator:
+6) Other test: Empty `name` value and change `name` type as mandatory using inline type change. Look `t.mandatory` method in the decorator:
 
 
     @dataskeme.args(name=t.mandatory(t.name), address=t.address, phone_number=t.phone_number)
@@ -117,13 +117,13 @@ The error will be:
     'name' is mandatory
     ...and 1 error more
 
-6) Want you see all errors? Change `dataskeme.MAX_VALIDATION_MESSAGES = 10` to see the 10 first validation messages o `dataskeme.MAX_VALIDATION_MESSAGES = 0` to see all
+7) Want you see all errors? Change `dataskeme.MAX_VALIDATION_MESSAGES = 10` to see the 10 first validation messages o `dataskeme.MAX_VALIDATION_MESSAGES = 0` to see all
 
 
     'name' is mandatory
     'Phone number' has an invalid phone number format
 
-7) Now, 'name' is a field name it is not a known name. Then, use t.label() to assign a new label o modify your data scheme to assign a label to this type.   
+8) Now, 'name' is a field name it is not a known name. Then, use t.label() to assign a new label o modify your data scheme to assign a label to this type.   
 
 
     @dataskeme.args(name=t.label(t.mandatory(t.name), 'Contact name'), address=t.address, phone_number=t.phone_number)
@@ -143,13 +143,13 @@ or create data type directly in your data schema:
         ...
 
 
-8) The error:
+9) The error:
 
 
     'Contact name' is mandatory
     'Phone number' has an invalid phone number format
 
-9) "Well, but I want to show errors in each field. Is this possible?" Yes, it is. Validation exception (`SchemaValidationResult`) has a method to return validation info by field: `get_result_of(field_name)`. This method returns this data structure:
+10) "Well, but I want to show errors in each field. Is this possible?" Yes, it is. Validation exception (`SchemaValidationResult`) has a method to return validation info by field: `get_result_of(field_name)`. This method returns this data structure:
 
 
     {
@@ -181,9 +181,9 @@ The method `get_results()` returns all validation results in a dict whose keys a
     get_message():
     "'Contact name' is mandator\n'Phone number' has an invalid phone number format",
 
-10) `dataskema` supports Spanish and English messages. Use `dataskema.lang.DEFAULT = dataskema.lang.ES` to show Spanish language. 
+11) `dataskema` supports Spanish and English messages. Use `dataskema.lang.DEFAULT = dataskema.lang.ES` to show Spanish language. 
 
-11) "Fine, but solution that I search is for Flask endpoints and its incoming parameters". No problem, `dataskema` is the solution. For example, look that Flask endpoint. Look that `user_id` parameter passed as `argument` for the next method.
+12) "Fine, but solution that I search is for Flask endpoints and its incoming parameters". No problem, `dataskema` is the solution. For example, look that Flask endpoint. Look that `user_id` parameter passed as `argument` for the next method.
 
 
     @flask_app.route('/api/user/<user_id>', methods=['PUT'])
@@ -192,7 +192,7 @@ The method `get_results()` returns all validation results in a dict whose keys a
         ...
 
 
-12) This example not validate `user_id` neither `json_data`. Now, we will use our decorators and our data schema (`mydatatypes.py`). Look as `update_user` method includes the json params that we need us. This params are defined by above decorator `flask_json`. If the incoming params not validate then a `SchemaValidationResult` will be raised. Look how `user_id` is validated with `arg` decorator. 
+13) This example not validate `user_id` neither `json_data`. Now, we will use our decorators and our data schema (`mydatatypes.py`). Look as `update_user` method includes the json params that we need us. This params are defined by above decorator `flask_json`. If the incoming params not validate then a `SchemaValidationResult` will be raised. Look how `user_id` is validated with `arg` decorator. 
 
 
     @flask_app.route('/api/user/<user_id>', methods=['PUT'])
@@ -201,7 +201,7 @@ The method `get_results()` returns all validation results in a dict whose keys a
     def update_user(user_id: str, name: str, address: str, phone_number: str):
         ...
 
-13) "But, What happes if my GET method not contains JSON data because the data is in the query string?" Easy. Use `flask_query` decorator in the same way.
+14) "But, What happes if my GET method not contains JSON data because the data is in the query string?" Easy. Use `flask_query` decorator in the same way.
 
 
     @flask_app.route('/api/user/<user_id>', methods=['GET'])
@@ -210,7 +210,7 @@ The method `get_results()` returns all validation results in a dict whose keys a
     def update_user(user_id: str, name: str, address: str, phone_number: str):
         ...
 
-14) "And now, how catch the decorator exception to process validation result?" Use your own decorator (for example, `@my_json_result`) to catch this result and response with JSON data as this example is shown:
+15) "And now, how catch the decorator exception to process validation result?" Use your own decorator (for example, `@my_json_result`) to catch this result and response with JSON data as this example is shown:
 
 
     @flask_app.route('/api/user/<user_id>', methods=['PUT'])

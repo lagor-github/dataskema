@@ -9,7 +9,7 @@ setup(
     name='dataskema',
     packages=['dataskema', 'dataskema.decorators'],
     include_package_data=True,  # -- para que se incluyan archivos sin extension .py
-    version='1.0',
+    version='1.3',
     description='Data schema to validate parameters easily, quickly and with minimal code',
     long_description=readme_description,
     long_description_content_type="text/markdown",
@@ -23,6 +23,6 @@ setup(
     url="https://github.com/lagor-github/dataskema",
     classifiers=["Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
-        "Development Status :: 4 - Beta", "Intended Audience :: Developers",
+        "Development Status :: 5 - Production/Stable", "Intended Audience :: Developers",
         "Operating System :: OS Independent"],
     )
