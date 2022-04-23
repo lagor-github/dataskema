@@ -21,6 +21,27 @@ MORE_MESSAGES = {
 }
 
 
+def _get_anonymous() -> str:
+    name = ANONYMOUS_NAME.get(DEFAULT)
+    if name is None:
+        name = ''
+    return name
+
+
+def _get_plural() -> str:
+    name = PLURAL.get(DEFAULT)
+    if name is None:
+        name = PLURAL.get(EN)
+    return name
+
+
+def _get_more_messages() -> str:
+    name = MORE_MESSAGES.get(DEFAULT)
+    if name is None:
+        name = MORE_MESSAGES.get(EN)
+    return name
+
+
 def get_more_messages(total: int) -> str:
     """
     Message for append to general validation message when more messages were found
@@ -30,9 +51,9 @@ def get_more_messages(total: int) -> str:
     if total > 0:
         params = {
             'total': str(total),
-            'plural': PLURAL[DEFAULT] if total > 1 else ''
+            'plural': _get_plural() if total > 1 else ''
         }
-        return ' ' + get_message(MORE_MESSAGES[DEFAULT], params)
+        return ' ' + get_message(_get_more_messages(), params)
     return ''
 
 
@@ -40,7 +61,7 @@ def get_message(val_message: str, val_params: dict, anonymize: bool or None = Fa
     ex_message = val_message
     for (key, value) in val_params.items():
         if key == 'name':
-            value = "'" + value + "'" if not anonymize else ANONYMOUS_NAME[DEFAULT]
+            value = "'" + value + "'" if not anonymize else _get_anonymous()
         ex_message = util.trim(ex_message.replace('{' + key + '}', str(value)))
         ex_message = ex_message[0].upper() + ex_message[1:]
     return ex_message
@@ -84,7 +105,7 @@ VAL_ERROR_PARAM_IS_TOO_BIG = {
 }
 VAL_ERROR_LIST_ITEM_HAS_INVALID_ELEMENT = {
     EN: "{name} has an invalid element. {message}",
-    ES: "{name} tiene un elemento no váldio. {message}",
+    ES: "{name} tiene un elemento no válido. {message}",
 }
 VAL_ERROR_PARAM_HAS_INVALID_VALUE = {
     EN: "{name} has a not valid value",

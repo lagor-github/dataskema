@@ -1,6 +1,10 @@
 # `dataskema`
 Data schema validation for python
 
+- Security validation compliant
+  - CWE-20: Improper Input Validation
+- Avoid injections:
+  - OWASP Top 10: A03:2021 – Injection 
 - Validate types, formats, sizings, lines, etc. of incoming parameters
 - Customizable types for own aplications
 - Customizable validation messages
@@ -17,39 +21,47 @@ Data schema validation for python
 
 ## How to use `dataskema`
 
-1) Define your own data schema using `dataskema` default data types (`mydatatypes.py`) or using your own data types:
+1) First, define your own data schema using `dataskema` default data types (`dataskema.data_types.py`) or using your own data types. For example (`mydatatypes.py`):
 
 
-    from dataskema.data_types import DataTypes
+    from dataskema.data_types import DataTypes as t
 
-    class MyDataTypes(DataTypes):
+    class MyDataTypes(t):
 
-        address = DataTypes.type(DataTypes.title, {
+        address = t.type(t.title, {
             'label': 'Address',
             'regexp': '^[a-zA-Z0-9\\.\\@\\+\\-\\_]+$',
         })
-        phone_number = {
-            'type': 'str',
+        phone_number = t.str({
             'max-size: 20,
             'regexp': '^[0-9\\-]+]+$',
-        }
+        })
         ...
 
-2) Import your data schema and use it with `dataskema` validation decorators. Look that t.name is inherited from default data types of DataTypes class.
+2) Now, import your data schema and use it with `dataskema` validation decorators. Look that `t.name` is inherited from default data types of `dataskema.data_types.DataTypes` class. Default data types are methods that creates default types permitting add more properties, but you can use as it is. The `@dataskema.args` decorator validate method arguments. Look how use it.
+
+
+Import `dataskema` package and our data types python file: 
 
 
     import dataskeme
     from mydatatypes import MyDataTypes as t
 
 
-    @dataskeme.args(name=t.name, address=t.address, phone_number=t.phone_number)
+Print validated contact data: 
+
+
+    @dataskeme.args(name=t.name(), address=t.address, phone_number=t.phone_number)
     def print_contact_data(name: str, address: str, phone_numer: str):
         print(f"Name: {name}"
         print(f"Address: {address}"
         print(f"Phone number: {phone_number}"
 
 
-    def service_edit_contact():
+Pass contact data for validate and print: 
+
+
+    def service_print_contact():
         name = 'Lorenzo'
         addresss = 'C/ Costa Rica, 32'
         phone_number = '999-845-321'
@@ -58,40 +70,44 @@ Data schema validation for python
         except SchemaValidationResult as res:
             print(res.get_message())
 
-3) In the above example, before printing contact data, it is validated with own data schema. The data are correct and no errors will be shown. But if we modify `mydatatypes.py` to force a validation error, then:  
+
+3) In the above example, before printing contact data, it is validated with own data schema. If the data are correct, no error will be shown. But if we modify `mydatatypes.py` to force a validation error, then:  
 
 
-    phone_number = {
-        'type': 'str',
+    phone_number = t.str({
         'max-size: 20,
         'regexp': '^[0-9]+$',
     })
     ...
 
-The error will be: 
+
+Now, we are not permitting phone numbers with minus symbols. The error will be: 
+
 
     'phone_number' has an invalid format
+
 
 4) We can specify label for this paramente to show a better message:  
 
 
-    phone_number = {
-        'type': 'str',
+    phone_number = t.str({
         'label': 'Phone number',
         'max-size: 20,
         'regexp': '^[0-9]+$',
     })
     ...
 
+
 The error will be: 
 
+
     'Phone number' has an invalid format
+
 
 5) We can specify our own format error message too:  
 
 
-    phone_number = {
-        'type': 'str',
+    phone_number = t.str({
         'label': 'Phone number',
         'max-size: 20,
         'regexp': '^[0-9]+$',
@@ -99,17 +115,20 @@ The error will be:
     })
     ...
 
+
 The error will be: 
+
 
     'Phone number' has an invalid phone number format
     
 
-6) Other test: Empty `name` value and change `name` type as mandatory using inline type change. Look `t.mandatory` method in the decorator:
+6) Other test: Empty `name` value and change `name` type as mandatory using inline type change. Look `t.mandatory()` method in the decorator:
 
 
-    @dataskeme.args(name=t.mandatory(t.name), address=t.address, phone_number=t.phone_number)
+    @dataskeme.args(name=t.mandatory(t.name()), address=t.address, phone_number=t.phone_number)
     def print_contact_data(name: str, address: str, phone_numer: str):
         ...
+
 
 The error will be: 
 
@@ -117,49 +136,59 @@ The error will be:
     'name' is mandatory
     ...and 1 error more
 
+
 7) Want you see all errors? Change `dataskeme.MAX_VALIDATION_MESSAGES = 10` to see the 10 first validation messages o `dataskeme.MAX_VALIDATION_MESSAGES = 0` to see all
 
 
     'name' is mandatory
     'Phone number' has an invalid phone number format
 
+
 8) Now, 'name' is a field name it is not a known name. Then, use t.label() to assign a new label o modify your data scheme to assign a label to this type.   
 
 
-    @dataskeme.args(name=t.label(t.mandatory(t.name), 'Contact name'), address=t.address, phone_number=t.phone_number)
+    @dataskeme.args(name=t.label(t.mandatory(t.name()), 'Contact name'), address=t.address, phone_number=t.phone_number)
     def print_contact_data(name: str, address: str, phone_numer: str):
         ...
 
-or create data type directly in your data schema:
 
-    name = DataTypes.type(DataTypes.name, {
+or create data type directly in your data schema. It's really better:
+In `mydatatypes.py`:
+
+
+    contact_name = t.name({
         'label': 'Contact name',
         'required': True,
     })
     ...
 
-    @dataskeme.args(name=t.name, 'Contact name'), address=t.address, phone_number=t.phone_number)
+
+In my test file:
+
+
+    @dataskeme.args(name=t.contact_name, address=t.address, phone_number=t.phone_number)
     def print_contact_data(name: str, address: str, phone_numer: str):
         ...
 
 
-9) The error:
+This will show the next error:
 
 
     'Contact name' is mandatory
     'Phone number' has an invalid phone number format
 
-10) "Well, but I want to show errors in each field. Is this possible?" Yes, it is. Validation exception (`SchemaValidationResult`) has a method to return validation info by field: `get_result_of(field_name)`. This method returns this data structure:
 
+9) "Well, but I want to show errors in each formulary field. Is this possible?" Yes, it is. Validation exception (`SchemaValidationResult`) has a method to return validation info by field: `get_result_of(field_name)`. This method returns this data structure by each field:
 
     {
-        'valid': <boolean to indicate if this field is valid or not>
-        'message': <validation message. Only valid=False>
-        'label': <label assigned to field if was defined. Only valid=False>
+        'valid': <boolean to indicate if this field was validated with positive result or not>
+        'message': <validation message only if valid=False>
+        'label': <label assigned to field only if valid=False>
     }
 
 
 The method `get_results()` returns all validation results in a dict whose keys are the field names. The method `get_message()` returns all validation messages. In own example, the returning would be:
+
 
     get_results():
     {
@@ -181,9 +210,49 @@ The method `get_results()` returns all validation results in a dict whose keys a
     get_message():
     "'Contact name' is mandator\n'Phone number' has an invalid phone number format",
 
-11) `dataskema` supports Spanish and English messages. Use `dataskema.lang.DEFAULT = dataskema.lang.ES` to show Spanish language. 
 
-12) "Fine, but solution that I search is for Flask endpoints and its incoming parameters". No problem, `dataskema` is the solution. For example, look that Flask endpoint. Look that `user_id` parameter passed as `argument` for the next method.
+10) `dataskema` supports Spanish and English messages. Use `dataskema.lang.DEFAULT = dataskema.lang.ES` to show Spanish language. You can specify your own format error messages and your own labels in multilanguage. Look this example: 
+
+
+    from dataskema.lang import ES, EN
+
+
+    phone_number = t.str({
+        'label': {
+          ES: 'Teléfono',
+          EN: 'Phone number',
+        },
+        'max-size: 20,
+        'regexp': '^[0-9]+$',
+        'message': {
+          ES: '{name} es un número teléfono no válido',
+          EN: '{name} has an invalid phone number format', 
+        })
+    ...
+
+
+You can use any language using this definition way. ES and EN are strings 'es' and 'es' respectively. You can use another languages:
+
+
+    FR = 'fr'
+
+    phone_number = t.str({
+        'label': {
+          ES: 'Teléfono',
+          EN: 'Phone number',
+          FR: 'Téléphone',
+        },
+        'max-size: 20,
+        'regexp': '^[0-9]+$',
+        'message': {
+          ES: '{name} es un número teléfono no válido',
+          EN: '{name} has an invalid phone number format', 
+          FR: '{name} c'est un numéro de téléphone invalide', 
+        })
+    ...
+
+
+11) "Fine, but solution that I search is for Flask endpoints and its incoming parameters". No problem, `dataskema` is the solution. For example, look that Flask endpoint. Look that `user_id` parameter passed as `argument` for the next method.
 
 
     @flask_app.route('/api/user/<user_id>', methods=['PUT'])
@@ -192,23 +261,25 @@ The method `get_results()` returns all validation results in a dict whose keys a
         ...
 
 
-13) This example not validate `user_id` neither `json_data`. Now, we will use our decorators and our data schema (`mydatatypes.py`). Look as `update_user` method includes the json params that we need us. This params are defined by above decorator `flask_json`. If the incoming params not validate then a `SchemaValidationResult` will be raised. Look how `user_id` is validated with `arg` decorator. 
+This example not validate `user_id` neither `json_data`. Now, we will use our decorators and our data schema (`mydatatypes.py`). Look as `update_user` method includes the json params that we need us. This params are defined by above decorator `flask_json`. If the incoming params not validate then a `SchemaValidationResult` will be raised. Look how `user_id` is validated with `arg` decorator. 
 
 
     @flask_app.route('/api/user/<user_id>', methods=['PUT'])
     @dataskema.args(user_id=t.user_id)
-    @dataskema.flask_json(name=t.name, address.t.address, phone_number=t.phone_number)
+    @dataskema.flask_json(name=t.contact_name, address.t.address, phone_number=t.phone_number)
     def update_user(user_id: str, name: str, address: str, phone_number: str):
         ...
+
 
 14) "But, What happes if my GET method not contains JSON data because the data is in the query string?" Easy. Use `flask_query` decorator in the same way.
 
 
     @flask_app.route('/api/user/<user_id>', methods=['GET'])
     @dataskema.args(user_id=t.user_id)
-    @dataskema.flask_query(name=t.name, address.t.address, phone_number=t.phone_number)
+    @dataskema.flask_query(name=t.contact_name, address.t.address, phone_number=t.phone_number)
     def update_user(user_id: str, name: str, address: str, phone_number: str):
         ...
+
 
 15) "And now, how catch the decorator exception to process validation result?" Use your own decorator (for example, `@my_json_result`) to catch this result and response with JSON data as this example is shown:
 
@@ -238,25 +309,29 @@ The code of `@my_json_result` could be something as this:
             return wrapper
         return inner_function
 
+
 15) "All of this is bored for me. I hate decorators". Well, if you want to use the code for validate parameters in the traditional way, look this examples:
 
 
     @flask_app.route('/api/user/<user_id>', methods=['PUT'])
-    def update_user(user_id: str):
+    def update_user(user_id):
         try:
-            args_validator = Args()
-            args_validator.validate(user_id=t.user_id)
-            json_validator = JSON()
-            json_validator.validate(name=t.name, address.t.address, phone_number=t.phone_number)
+            args_validator = Args({'user_id': user_id})
+            args_validator.validate({'user_id': t.user_id})
+            json_validator = JSON() # --> load JSON data: name, address & phone_number 
+            json_validator.validate({'name': t.name, 'address': t.address, 'phone_number': t.phone_number})
             return {result: 'OK'}
         raise SchemaValidatorResult as ex:
             error_msg = ex.get_message()
             errors = ex.get_result()
             return {result: 'ERR', reason: error_msg, errors: errors}
+
+    
+It's really worse, less elegant and too much bored code...
             
         
 ## Data types definition
-You will define a struct data with some of that keywords. 
+You can define your struct data types with some of that keywords. 
 
 ### All types
 That keywords are for all types:
@@ -332,157 +407,52 @@ That types have no specific keywords:
 
 
 ## Default data types 
-That are the default data types defined by `dataskema` by the class `DataTypes` in `data_types.py` file. It's very illustrative as an example:
+That are the default data types defined by `dataskema` by the class `DataTypes` in `data_types.py` file. It's very illustrative as an example because create default methods that define types permitting extends its properties with more keywords:
 
-
-    class DataTypes:
-    
-        generic = {
-            'type': 'any',
-        }
-        boolean = {
-            'type': 'bool',
-            'message': {
-                lang.EN: "{name} must be a boolean",
-                lang.ES: "{name} debe ser un booleano",
-            }
-        }
-        integer = {
-            'type': 'int',
-            'message': {
-                lang.EN: "{name} must be an integer number",
-                lang.ES: "{name} debe ser un número entero",
-            }
-        }
-        positive = {
-            'type': 'int',
-            'min-value': 1,
-            'message': {
-                lang.EN: "{name} must be an integer positive number",
-                lang.ES: "{name} debe ser un número entero positivo",
-            }
-        }
-        negative = {
-            'type': 'int',
-            'max-value': -1,
-            'message': {
-                lang.EN: "{name} must be an integer negative number",
-                lang.ES: "{name} debe ser un número entero nagativo",
-            }
-        }
-        zero_positive = {
-            'type': 'int',
-            'min-value': 0,
-            'message': {
-                lang.EN: "{name} must be an integer number or zero",
-                lang.ES: "{name} debe ser un número entero positivo o cero",
-            }
-        }
-        zero_negative = {
-            'type': 'int',
-            'max-value': 0,
-            'message': {
-                lang.EN: "{name} must be an integer negative number or zero",
-                lang.ES: "{name} debe ser un número entero negativo o cero",
-            }
-        }
-        decimal = {
-            'type': 'float',
-            'message': {
-                lang.EN: "{name} must be a valid decimal number",
-                lang.ES: "{name} debe ser un número decimal válido",
-            }
-        }
-        hexadecimal = {
-            'regexp': '^[A-Fa-f0-9]+$',
-            'message': {
-                lang.EN: "{name} must be a valid hexadecimal number",
-                lang.ES: "{name} debe ser un número hexadecimal válido",
-            }
-        }
-        alfanumeric = {
-            'regexp': '^[A-Za-z0-9]+$',
-            'message': {
-                lang.EN: "{name} must be a alphanumeric string",
-                lang.ES: "{name} debe ser una cadena alfanumérica",
-            }
-        }
-        short_id = {
-            'max-size': 20,
-        }
-        long_id = {
-            'max-size': 40,
-        }
-        short_name = {
-            'max-size': 50,
-        }
-        name = {
-            'max-size': 100,
-        }
-        title = {
-            'max-size': 200,
-        }
-        summary = {
-            'max-size': 2000,
-        }
-        text = {
-            'max-size': 500000,
-            'max-lines': 10000,
-        }
-        version = {
-            'regexp': '^[a-zA-Z0-9\\.\\-\\+]+$',
-            'message': {
-                lang.EN: "{name} must have a valid version format",
-                lang.ES: "{name} debe tener un formato de versión válido",
-            }
-        }
-        search = {
-            'max-size': 50,
-        }
-        email = {
-            'regexp': '^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$',
-            'max-size': 100,
-            'message': {
-                lang.EN: "{name} must have a valid e-mail format",
-                lang.ES: "{name} debe tener un formato de e-mail válido",
-            }
-        }
-        url = {
-            'regexp': '^((((https?|ftps?|gopher|telnet|nntp)://)|(mailto:|news:))(%[0-9A-Fa-f]{2}|[-()_.!~*\';/?:@&'
-                      '=+$,A-Za-z0-9])+)([).!\';/?:,][[:blank:|:blank:]])?$',
-            'max-size': 500,
-            'message': {
-                lang.EN: "{name} must have a valid URL format",
-                lang.ES: "{name} debe tener un formato de URL válida",
-            }
-        }
-        password = {
-            'regexp': '^[a-zA-Z0-9_+&*\\$\\-\\(\\)]+$',
-            'max-size': 50,
-            'min-size': 8,
-            'message': {
-                lang.EN: "{name} must have a valid password (only alphanumeric chars and _, +, &, *, -, (, ) or $ symbols)",
-                lang.ES: "{name} debe tener un formato de password válida (sólo caracters alfanuméricos y los símbolos _, +, &, *, -, (, ) o $",
-            }
-        }
             
 
 ## Inline keyword override  
-The class `DataTypes` define some static methods to ease include keyword in a type without modify the type in particular cases. That methods are:
+The class `DataTypes` define static methods to ease add keywords in a default type without modify the type. That methods are:
 - `label(type, label)`: include a label for the type
 - `default(type, default_value)`: include a default value for the type
 - `upper(type)`: force incoming value to be uppercase
 - `lower(type)`: force incoming value to be lowercase
 - `mandatory(type)`: the value must be mandatory
 - `type(type, newtype)`: One way to redefine inline a complex type. Useful for define our own data types using `DataTypes` class
+- `str(extended_properties)`: Define a `'type': 'str'` permitting extends more keywords.
+- `int(extended_properties)`: Define a `'type': 'int'` permitting extends more keywords.
+- `float(extended_properties)`: Define a `'type': 'float'` permitting extends more keywords.
+- `bool(extended_properties)`: Define a `'type': 'bool'` permitting extends more keywords.
+- `list(extended_properties)`: Define a `'type': 'list'` permitting extends more keywords.
+- `dict(extended_properties)`: Define a `'type': 'dict'` permitting extends more keywords.
+- `white_list(list, extended_properties)`: Define a `'type': 'str'` including a white-list and more keywords.
+- `positive(extended_properties)`: Define a `'type': 'int'` including its constraints for be a positive number.
+- `zero_positive(extended_properties)`: Define a `'type': 'int'` including its constraints for be a zero o positive number.
+- `negative(extended_properties)`: Define a `'type': 'int'` including its constraints for be a negative number.
+- `url(extended_properties)`: Define a `'type': 'str'` including its constraints for url format.
+- `email(extended_properties)`: Define a `'type': 'str'` including its constraints for email format.
+- `password(extended_properties)`: Define a `'type': 'str'` including its constraints for password 
+- `decimal(extended_properties)`: Define a `'type': 'str'` including its constraints for a decimal format.
+- `hexadecimal(extended_properties)`: Define a `'type': 'str'` including its constraints for hexadecimal format.
+- `base64(extended_properties)`: Define a `'type': 'str'` including its constraints for base64 format.
+- `alfanumeric(extended_properties)`: Define a `'type': 'str'` including its constraints only for alfanumeric characters.
+- `short_id(extended_properties)`: Define a `'type': 'str'` with `'max-size': 20`.
+- `long_id(extended_properties)`: Define a `'type': 'str'` with `'max-size': 40`.
+- `name(extended_properties)`: Define a `'type': 'str'` with `'max-size': 100`.
+- `title(extended_properties)`: Define a `'type': 'str'` with `'max-size': 200`.
+- `summary(extended_properties)`: Define a `'type': 'str'` with `'max-size': 2000`.
+- `text(extended_properties)`: Define a `'type': 'str'` with `'max-size': 500000` and `'max-lines': 10000`.
+- `version(extended_properties)`: Define a `'type': 'str'` with a valid version format.
+- `search(extended_properties)`: Define a `'type': 'str'` for search strings.
+
 
 Examples:
 
 Importing `dataskema.data_types.DataTypes as t`:
 
-`t.name` is not a mandatory type but `t.mandatory(t.name)`, yes
+`t.name()` is not a mandatory type but `t.mandatory(t.name())`, yes
 
-`t.name` name by default will be 'name' but `t.label(t.name,'Contact')` will be named 'Contact' 
+`t.name()` name by default will be 'name' but `t.label(t.name(),'Contact')` will be named 'Contact' 
 
 
 For define own our types in a custom class:
@@ -492,25 +462,13 @@ For define own our types in a custom class:
     class MyDataTypes(t):
     
         contact = t.mandatory(t.label(t.name, 'Contact'))
-        contact_email = t.label(t.email, 'Contact e-mail')
-        address = t.label(t.title, 'Address')
-        postal_code = t.type(t.numeric, {
+        contact_email = t.label(t.email(), 'Contact e-mail')
+        address = t.label(t.title(), 'Address')
+        postal_code = t.numeric({
             label: 'Postal code'
             mandatory: true,
             min-size: 5,
             max-size: 5,
         })
         ...
-
-
-
-
-
-
-
-
-
-
-
-
 

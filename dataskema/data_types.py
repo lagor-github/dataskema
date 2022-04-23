@@ -50,16 +50,6 @@ class DataTypes:
         }, ptyp2)
 
     @staticmethod
-    def decimal(ptyp2: dict or None = None) -> dict:
-        return DataTypes.type({
-            'type': 'float',
-            'message': {
-                lang.EN: "{name} must be a valid decimal number",
-                lang.ES: "{name} debe ser un número decimal válido",
-            }
-        }, ptyp2)
-
-    @staticmethod
     def hexadecimal(ptyp2: dict or None = None) -> dict:
         return DataTypes.type({
             'regexp': '^[A-Fa-f0-9]+$',
@@ -242,13 +232,13 @@ class DataTypes:
 
     @staticmethod
     def white_list(white_list: list, ptyp2: dict or None = None) -> dict:
-        return DataTypes.str({'white-list': white_list}, ptyp2)
+        return DataTypes.type({'white-list': white_list}, ptyp2)
 
     @staticmethod
     def list(schema: dict, ptyp2: dict or None = None) -> dict:
-        return DataTypes.list({
+        return DataTypes.type({
             'type': 'list',
-            'schema': schema
+            'schema': schema,
             'message': {
                 lang.EN: "{name} must be a list",
                 lang.ES: "{name} debe ser una lista",

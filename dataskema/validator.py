@@ -13,6 +13,7 @@ KEYWORD_IS_VALID = 'valid'
 KEYWORD_NAME = 'name'
 KEYWORD_LABEL = 'label'
 KEYWORD_MESSAGE = 'message'
+KEYWORD_DESCRIPTION = 'description'
 KEYWORD_SEPARATOR = 'separator'
 KEYWORD_MANDATORY = 'mandatory'
 KEYWORD_DEFAULT = 'default'
@@ -60,7 +61,12 @@ class SchemaFormatError(ValueError):
 class SchemaValidationFailure(Exception):
 
     def __init__(self, message: dict or str, params: dict):
-        self.message = message[lang.DEFAULT] if isinstance(message, dict) else message
+        if isinstance(message, dict):
+            self.message = message.get(lang.DEFAULT)
+            if self.message is None:
+                self.message = message.get(lang.EN)
+        else:
+            self.message = message
         self.params = params
         super(SchemaValidationFailure, self).__init__(self.get_message())
 
@@ -81,8 +87,15 @@ class SchemaValidator:
     def validate(self, name: str, value: any) -> any:
         # -- obtiene la etiquea del parámetro
         keyword = KEYWORD_LABEL
-        label = self._get_str(keyword)
-        label = label if label is not None else name
+        label_map = self._get_obj(keyword)
+        if isinstance(label_map, dict):
+            label = label_map.get(lang.DEFAULT)
+            if label is None:
+                label = label_map.get(lang.EN)
+        elif isinstance(label_map, str):
+            label = label_map
+        else:
+            label = name
 
         # -- obtiene el valor según su tipo
         keyword = KEYWORD_TYPE
@@ -221,12 +234,19 @@ class SchemaValidator:
 
     def _check_error_custom_message(self, label: str, fail: SchemaValidationFailure):
         keyword = KEYWORD_MESSAGE
-        message = self._get_obj(keyword)
-        if message is None:
+        message_map = self._get_obj(keyword)
+        if message_map is None:
             raise fail
-        if isinstance(message, dict):
-            lang_message = message.get(lang.DEFAULT)
-            message = lang_message if lang_message is not None else fail.message
+        if isinstance(message_map, dict):
+            message = message_map.get(lang.DEFAULT)
+            if message is None:
+                message = message_map.get(lang.EN)
+            if message is None:
+                message = fail.message
+        elif isinstance(message_map, str):
+            message = message_map
+        else:
+            raise fail
         raise SchemaValidationFailure(message, {KEYWORD_NAME: label})
 
 
@@ -302,9 +322,9 @@ def _get_type_list(name: str, value: any, separator: str) -> list or None:
         return None
     if isinstance(value, str):
         return value.split(separator)
-    elif isinstance(value, dict):
+    elif not isinstance(value, list):
         _val_error_unexpected_type(name, value, KEYWORD_TYPE_LIST)
-    return [value]
+    return value
 
 
 def _get_type_dict(name: str, value: any) -> list or None:
@@ -366,9 +386,10 @@ def _check_item_list_schema(name: str, plist: list, item_schema: dict):
     if item_schema is not None:
         schema_validator = SchemaValidator(item_schema)
         for pitem in plist:
-            message = schema_validator.validate('item list', pitem)
-            if message is not None:
-                raise SchemaValidationFailure(lang.VAL_ERROR_LIST_ITEM_HAS_INVALID_ELEMENT, {KEYWORD_NAME: name, 'message': message})
+            try:
+                schema_validator.validate('item list', pitem)
+            except SchemaValidationFailure as ex:
+                raise SchemaValidationFailure(lang.VAL_ERROR_LIST_ITEM_HAS_INVALID_ELEMENT, {KEYWORD_NAME: name, 'message': ex.get_message()})
 
 
 def _check_whitelist(name: str, value: any, whitelist: list, icase: bool = True):
