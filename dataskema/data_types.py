@@ -50,6 +50,16 @@ class DataTypes:
         }, ptyp2)
 
     @staticmethod
+    def decimal(ptyp2: dict or None = None) -> dict:
+        return DataTypes.type({
+            'type': 'float',
+            'message': {
+                lang.EN: "{name} must be a valid decimal number",
+                lang.ES: "{name} debe ser un número decimal válido",
+            }
+        }, ptyp2)
+
+    @staticmethod
     def hexadecimal(ptyp2: dict or None = None) -> dict:
         return DataTypes.type({
             'regexp': '^[A-Fa-f0-9]+$',
@@ -80,7 +90,7 @@ class DataTypes:
         }, ptyp2)
 
     @staticmethod
-    def alfanumeric(ptyp2: dict or None = None) -> dict:
+    def alphanumeric(ptyp2: dict or None = None) -> dict:
         return DataTypes.type({
             'regexp': '^[A-Za-z0-9]+$',
             'message': {

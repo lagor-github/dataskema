@@ -9,7 +9,7 @@ setup(
     name='dataskema',
     packages=['dataskema', 'dataskema.decorators'],
     include_package_data=True,  # -- para que se incluyan archivos sin extension .py
-    version='1.4.1',
+    version='1.5.0',
     description='Data schema to validate parameters easily, quickly and with minimal code',
     long_description=readme_description,
     long_description_content_type="text/markdown",

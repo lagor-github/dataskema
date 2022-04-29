@@ -77,7 +77,7 @@ class DataSchema:
         total_errors = 0
         for pname, pvalue in self.data.items():
             schema = data_schema.get(pname)
-            if schema is None:
+            if schema is None or not isinstance(schema, dict):
                 _add_is_not_valid(result, pname, pname, f"'{pname}' has not data-scheme definition")
                 continue
             validator = SchemaValidator(schema)
